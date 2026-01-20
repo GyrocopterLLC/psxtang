@@ -1,7 +1,7 @@
 module psxddr_to_ahb
 
 (
-    input         RESET,
+    input         RESETN,
 	//DDR3 RAM interface from psx core
 	input         DDRAM_CLK,
 	output        DDRAM_BUSY,
@@ -30,8 +30,6 @@ module psxddr_to_ahb
 );
 
 
-logic busy_out = 0;
-logic dout_ready_out = 0;
 logic [28:0] haddr_out = 0; 
 logic hwrite_out = 0;
 logic htrans_out = 0;
@@ -59,15 +57,16 @@ assign HSIZE = 3'b011; // Size always fixed to 64 bits
 assign HBURST = 3'b000; // Burst not supported
 assign HWRITE = hwrite_out;
 assign HTRANS = {htrans_out, 1'b0};
-
+assign HWDATA = hwdata_out;
+assign HWSTRB = hwstrb_out;
 
 assign DDRAM_BUSY = (c_s == WRITE_ADDR) || (c_s == WRITE_DATA);
 assign DDRAM_DOUT = HRDATA; // direct path for reads, not registered. 
 assign DDRAM_DOUT_READY = (c_s == READ_DATA) & HREADY;
 
 
-always_ff @(posedge DDRAM_CLK or posedge RESET) begin
-    if(RESET) begin
+always_ff @(posedge DDRAM_CLK or negedge RESETN) begin
+    if(!RESETN) begin
         c_s <= IDLE;
         htrans_out <= 0;
         hwrite_out <= 0;
