@@ -1,0 +1,36 @@
+-series GW5AST
+-device GW5AST-138
+-device_version C
+-package PBGA484A
+-part_number GW5AST-LV138PG484AC1/I0
+
+
+-mod_name Gowin_MULTALU
+-file_name gowin_multalu
+-path D:/fpga/psx_gte_ae350/src/gowin_multalu/
+-type MULTALU
+-file_type vhdl
+-ip_version 1.1
+-mode 3
+-width_a 27
+-mult12x12_en 0
+-width_b 18
+-asel_mode 0
+-asel 0
+-addsub0_mode 1
+-shift_outa 0
+-ina_reg_clk 0
+-inb_reg_clk 0
+-addsub0_ireg_clk 0
+-addsub0_preg_clk 0
+-pipe_reg_clk 0
+-width_c 48
+-csel 0
+-addsub1_mode 1
+-c_ireg_clk 0
+-c_preg_clk 0
+-addsub1_ireg_clk 0
+-addsub1_preg_clk 0
+-width_out 48
+-reset_mode sync
+-out_reg_clk 0
