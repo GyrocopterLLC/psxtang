@@ -1,0 +1,17 @@
+[General]
+ipc_version=4
+file=dpram_dif_gpu_pixelpipeline_64x64_to_16x256
+module=dpram_dif_gpu_pixelpipeline_64x64_to_16x256
+target_device=gw5ast138c-007
+type=ram_sdpb
+version=1.0
+
+[Config]
+BYTE_SIZE=0
+DEPTH_A=64
+DEPTH_B=256
+LANG=1
+READ=0
+RESET_MODE=true
+WIDTH_A=64
+WIDTH_B=16
