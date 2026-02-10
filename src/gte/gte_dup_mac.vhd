@@ -415,9 +415,13 @@ begin
             MAC1req.trigger <= '0';
             MAC2req.trigger <= '0';
             MAC3req.trigger <= '0';
+            MAC1_0req.trigger <= '0';
+            MAC2_0req.trigger <= '0';
+            MAC3_0req.trigger <= '0';
             
             div_trigger     <= '0';
             pushRGBfromMAC  <= '0';
+            pushRGBfromMAC_0  <= '0';
             setOTZ          <= '0';
             pushSZandDivide <= '0';
             pushSXY         <= '0';
@@ -1525,7 +1529,7 @@ begin
    port map
    (
       clk2x          => clk2x,         
-      MACreq         => MAC1req,       
+      MACreq         => MAC1_0req,       
       mac_result     => mac1_0_result,   
       mac_writeback  => mac1_0_writeback,
       ir_result      => ir1_0_result,   
@@ -1540,7 +1544,7 @@ begin
    port map
    (
       clk2x          => clk2x,         
-      MACreq         => MAC2req,       
+      MACreq         => MAC2_0req,       
       mac_result     => mac2_0_result,   
       mac_writeback  => mac2_0_writeback,
       ir_result      => ir2_0_result,   
@@ -1555,7 +1559,7 @@ begin
    port map
    (
       clk2x          => clk2x,         
-      MACreq         => MAC3req,       
+      MACreq         => MAC3_0req,       
       mac_result     => mac3_0_result,   
       mac_writeback  => mac3_0_writeback,
       ir_result      => ir3_0_result,   
