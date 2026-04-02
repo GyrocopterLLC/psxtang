@@ -314,18 +314,20 @@ logic [ADDR_WIDTH-1:0] i_wr_addr;
 logic [ADDR_WIDTH-1:0] o_rd_addr;
 always_comb begin
     i_wr_addr = vin_buf_start_word_i;
-    i_wr_addr[i_addr_shift +: 8] = vin_buf_line_i;
+    i_wr_addr[i_addr_shift +: 9] = vin_buf_line_i;
     if (vin_frame_slot_i != 2'd3) 
-        i_wr_addr[(i_addr_shift+8) +: 2] = vin_frame_slot_i;
+        i_wr_addr[(i_addr_shift+9) +: 2] = vin_frame_slot_i;
+    else
+        i_wr_addr[(i_addr_shift+9) +: 2] = 2'b00;
 end
 
 always_comb begin 
     o_rd_addr = vout_buf_rd_word_i;
-    o_rd_addr[i_addr_shift +: 8] = vout_buf_rd_line_i;
+    o_rd_addr[i_addr_shift +: 9] = vout_buf_rd_line_i;
     if (vin_frame_slot_i != 2'd0)
-        o_rd_addr[(i_addr_shift+8) +: 2] = (vin_frame_slot_i - 2'd1);
+        o_rd_addr[(i_addr_shift+9) +: 2] = (vin_frame_slot_i - 2'd1);
     else
-        o_rd_addr[(i_addr_shift+8) +: 2] = 2'd2;
+        o_rd_addr[(i_addr_shift+9) +: 2] = 2'd2;
 end
 
 typedef enum logic[1:0] { 
