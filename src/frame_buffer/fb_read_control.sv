@@ -31,6 +31,9 @@ module fb_read_control #
     output logic [7:0]              vout_r_o,
     output logic [7:0]              vout_g_o,
     output logic [7:0]              vout_b_o,
+    
+    output logic [10:0]             vout_h_count, // real pixel output counts
+    output logic [9:0]              vout_v_count, 
 
     input  logic [9:0]              vin_width_i,   // input image width (max: 1024)
     input  logic [8:0]              vin_height_i,  // input image height (max: 512)
@@ -82,9 +85,9 @@ localparam int VOUT_V_BLANK = VOUT_V_FRONT_PORCH + VOUT_V_SYNC_WIDTH + VOUT_V_BA
 localparam int VOUT_H_TOTAL = VOUT_H_BLANK + VOUT_WIDTH;
 localparam int VOUT_V_TOTAL = VOUT_V_BLANK + VOUT_HEIGHT;
 
-
-logic [10:0] o_h_count; // real pixel output counts
-logic [9:0]  o_v_count;  
+// Now as module outputs
+// logic [10:0] o_h_count; // real pixel output counts
+// logic [9:0]  o_v_count;  
 
 logic [10:0] o_h_container_start; // start/end of container in the output pixel space
 logic [9:0]  o_v_container_start;
@@ -103,18 +106,18 @@ logic        o_v_count_prev; // what, only one bit? we just need to update on a 
 // Starts in blanking (front porch -> sync -> back porch), then active video region until end of line / frame.
 always_ff @(posedge vout_clk_i or negedge rstn_i) begin
     if (!rstn_i) begin
-        o_h_count <= 0;
-        o_v_count <= 0;
+        vout_h_count <= 0;
+        vout_v_count <= 0;
     end else begin
-        if (o_h_count == VOUT_H_TOTAL - 1) begin
-            o_h_count <= 0;
-            if (o_v_count == VOUT_V_TOTAL - 1) begin
-                o_v_count <= 0;
+        if (vout_h_count == VOUT_H_TOTAL - 1) begin
+            vout_h_count <= 0;
+            if (vout_v_count == VOUT_V_TOTAL - 1) begin
+                vout_v_count <= 0;
             end else begin
-                o_v_count <= o_v_count + 1;
+                vout_v_count <= vout_v_count + 1;
             end
         end else begin
-            o_h_count <= o_h_count + 1;
+            vout_h_count <= vout_h_count + 1;
         end
     end
 end
@@ -137,17 +140,17 @@ end
 
 always_comb begin
     // Hsync, Vsync generation
-    o_hs = (o_h_count >= VOUT_HSYNC_START) && (o_h_count < VOUT_HSYNC_END);
+    o_hs = (vout_h_count >= VOUT_HSYNC_START) && (vout_h_count < VOUT_HSYNC_END);
     // Vsync isn't as easy. The spec requires vsync start and end at start of hsync
-    if (o_v_count == VOUT_VSYNC_START) begin
-        o_vs = (o_h_count >= VOUT_HSYNC_START);
-    end else if (o_v_count == VOUT_VSYNC_END) begin
-        o_vs = (o_h_count < VOUT_HSYNC_START);
+    if (vout_v_count == VOUT_VSYNC_START) begin
+        o_vs = (vout_h_count >= VOUT_HSYNC_START);
+    end else if (vout_v_count == VOUT_VSYNC_END) begin
+        o_vs = (vout_h_count < VOUT_HSYNC_START);
     end else begin
-        o_vs = (o_v_count >= VOUT_VSYNC_START) && (o_v_count < VOUT_VSYNC_END);
+        o_vs = (vout_v_count >= VOUT_VSYNC_START) && (vout_v_count < VOUT_VSYNC_END);
     end
 
-    o_de = (o_h_count >= VOUT_H_BLANK) && (o_v_count >= VOUT_V_BLANK);
+    o_de = (vout_h_count >= VOUT_H_BLANK) && (vout_v_count >= VOUT_V_BLANK);
 end
 
 
@@ -174,15 +177,15 @@ always_ff @(posedge vout_clk_i or negedge rstn_i) begin
         o_ycnt <= 0;
         o_container_active <= 0;
     end else begin
-        if(o_v_count >= o_v_container_start && o_v_count < o_v_container_end) begin
+        if(vout_v_count >= o_v_container_start && vout_v_count < o_v_container_end) begin
             // in vertical container space...
 
             // *** Horizontal scaling ***
             // activate within horizontal container space
-            if (o_h_count == o_h_container_start - 1) begin
+            if (vout_h_count == o_h_container_start - 1) begin
                 o_container_active <= 1;
             end
-            if (o_h_count == o_h_container_end - 1) begin
+            if (vout_h_count == o_h_container_end - 1) begin
                 o_container_active <= 0;
             end
 
@@ -198,8 +201,8 @@ always_ff @(posedge vout_clk_i or negedge rstn_i) begin
             end
             
             // *** Vertical scaling ***
-            o_v_count_prev <= o_v_count[0];
-            if( o_v_count_prev != o_v_count[0]) begin
+            o_v_count_prev <= vout_v_count[0];
+            if( o_v_count_prev != vout_v_count[0]) begin
                 // new line, update counters
                 o_ycnt <= o_ycnt + vin_height_i;
                 if (o_ycnt + vin_height_i >= vout_height_i) begin
@@ -246,16 +249,16 @@ always_ff @(posedge vout_clk_i or negedge rstn_i) begin
 
         case (buf_state)
             IDLE: begin
-                if(o_v_count >= o_v_container_start && o_v_count < o_v_container_end) begin
+                if(vout_v_count >= o_v_container_start && vout_v_count < o_v_container_end) begin
 
-                    if (o_h_count == VOUT_HSYNC_START) begin
+                    if (vout_h_count == VOUT_HSYNC_START) begin
                         // start of line, inside container vertical space. Issue read request.
                         vout_buf_rd_line_o <= o_cy;
                         vout_buf_rd_pixel_o <= 0;
                         vout_buf_rd_word_o <= 0;
                         vout_buf_data_req_o <= 1;
                         buf_state <= READ;
-                    end else if ((o_h_count >= VOUT_HSYNC_START) && (vout_buf_rd_pixel_o == 0)) begin
+                    end else if ((vout_h_count >= VOUT_HSYNC_START) && (vout_buf_rd_pixel_o == 0)) begin
                         // issue second read request immediately since we should have available space in the FIFO
                         vout_buf_rd_line_o <= o_cy;
                         vout_buf_rd_pixel_o <= vout_buf_rd_pixel_o + BURST_SIZE;
@@ -331,9 +334,9 @@ generate
             if(!rstn_i) begin
                 bg_color <= 24'h000000;
             end else begin
-                bg_color[7:0] <= 8'(11'(vout_bg_color_i[7:0]) + 11'(o_h_count) + 11'(o_v_count));
-                bg_color[15:8] <= 8'(11'(vout_bg_color_i[15:8]) + 11'(o_h_count) + 11'(o_v_count));;
-                bg_color[23:16] <= 8'(11'(vout_bg_color_i[23:16]) + 11'(o_h_count) + 11'(o_v_count));;
+                bg_color[7:0] <= 8'(11'(vout_bg_color_i[7:0]) + 11'(vout_h_count) + 11'(vout_v_count));
+                bg_color[15:8] <= 8'(11'(vout_bg_color_i[15:8]) + 11'(vout_h_count) + 11'(vout_v_count));;
+                bg_color[23:16] <= 8'(11'(vout_bg_color_i[23:16]) + 11'(vout_h_count) + 11'(vout_v_count));;
             end
         end
     end
