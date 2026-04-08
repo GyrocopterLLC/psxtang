@@ -227,13 +227,19 @@ always_ff @(posedge vout_clk_i or negedge rstn_i) begin
             
             if (int'(o_align) > (MEM_BYTES - PIX_BYTES)) begin
                 // append old saved bytes to this read
-                for (o = 0; o < PIX_BYTES; o = o + 1) begin
+                for (o = 0; o < (PIX_BYTES-1); o = o + 1) begin
                     if (int'(o_align) + o >= MEM_BYTES) begin
                         vout_buf_rd_data_o[(8*o) +: 8] <= o_fifo_rd_data[((int'(o_align)+o-MEM_BYTES)*8) +: 8];
                     end else begin
                         vout_buf_rd_data_o[(8*o) +: 8] <= o_fifo_rd_data_r[(8*o) +: 8];
                     end
                 end
+                // last byte must always come from fifo data
+                // overflow data cannot be PIX_BYTES long, it can only be up to PIX_BYTES-1. Otherwise it wouldn't be an overflow!
+                // It would simply be the final pixel of the previous FIFO word
+                vout_buf_rd_data_o[(8*(PIX_BYTES-1)) +: 8] <= o_fifo_rd_data[((int'(o_align)+(PIX_BYTES-1)-MEM_BYTES)*8) +: 8];
+                // note the above line is the same as the "true" case of the above if-else block, but the for loop variable "o"
+                // was replaced by (PIX_BYTES-1)
             end else begin
                 // standard move - just move FIFO data to read data
                 for(o = 0; o < PIX_BYTES; o = o + 1) begin
