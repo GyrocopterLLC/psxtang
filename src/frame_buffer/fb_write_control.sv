@@ -1,7 +1,7 @@
 // variable naming notes:
 // clock domain is the prefix. "o" or "vout" for video output domain, 
 // "vin" or "i" for video input domain, "mem" or "m" for DDR3 domain
-
+// `define FLUSH_AT_DATA_END
 // Module inputs all end with "_i", outputs end with "_o".
 /* verilator lint_off WIDTHEXPAND */
 /* verilator lint_off WIDTHTRUNC */
@@ -69,6 +69,7 @@ logic [8:0]             i_current_line;
 // don't let us flush the fifo RIGHT after a normal BURST_SIZE write has occurred
 // give it a little delay timer, this is a maximum of 32 cycles
 logic [4:0]             i_flush_timer; 
+logic                   i_flush_end_done; // flag so we only issue a flush for a single cycle
 `endif
 
 // Rising edge detection
@@ -104,6 +105,7 @@ always_ff @(posedge vin_clk_i or negedge rstn_i) begin
         vin_line_length_o <= 0;
 `ifdef FLUSH_AT_DATA_END
         i_flush_timer <= 0;
+        i_flush_end_done <= 0;
 `endif
     end else begin
         vin_buf_wr_en_o <= 0;
@@ -137,12 +139,16 @@ always_ff @(posedge vin_clk_i or negedge rstn_i) begin
 `ifdef FLUSH_AT_DATA_END
         if ((i_burst_pos != 0) && ((i_burst_start_pixel + i_burst_pos) == vin_width_i)) begin
             // reached the end of line, but still have pixels in the buffer that haven't been saved to memory
-            if (i_flush_timer == 0) begin
+            if ((i_flush_timer == 0) && (i_flush_end_done == 0)) begin
                 vin_buf_start_pixel_o <= i_burst_start_pixel;
                 vin_buf_start_word_o <= i_burst_start_word;
                 vin_buf_line_o <= i_current_line;
                 vin_buf_data_flush_o <= 1; // only place this is set
+                i_flush_end_done <= 1;
             end
+        end
+        if (i_hsync_rising) begin
+            i_flush_end_done <= 0;
         end
 `endif
 

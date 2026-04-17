@@ -1,6 +1,6 @@
 module frame_buffer_top #(
     // ** Global parameters **
-    parameter int BURST_SIZE = 16, // Number of pixels per burst
+    parameter int BURST_SIZE = 48, // Number of pixels per burst
     parameter int PIXEL_SIZE = 24, // Bits per pixel (24 bit = 888 format)
     parameter int MEMORY_WIDTH = 128,  // Memory data word size
 
@@ -49,6 +49,8 @@ module frame_buffer_top #(
     output logic [7:0]              vout_r_o,
     output logic [7:0]              vout_g_o,
     output logic [7:0]              vout_b_o,
+    output logic [10:0]             vout_h_count_o, // real pixel output counts
+    output logic [9:0]              vout_v_count_o, 
 
     // ** Memory clock domain **
     input  logic                    mem_clk_i,
@@ -79,16 +81,17 @@ logic [9:0]             vout_buf_rd_pixel;
 logic [9:0]             vout_buf_rd_word;
 logic                   vout_buf_rd_complete;
 logic                   vout_buf_rd_en;
+logic                   vout_frame_update;
 logic [PIXEL_SIZE-1:0]  vout_buf_rd_data;
 
 fb_mem_control
 #(
-    .ADDR_WIDTH,
-    .MEMORY_WIDTH,
-    .PIXEL_SIZE,
-    .BURST_SIZE,
-    .MAX_LINE_WIDTH,
-    .MEM_INCREMENT
+    .ADDR_WIDTH(ADDR_WIDTH),
+    .MEMORY_WIDTH(MEMORY_WIDTH),
+    .PIXEL_SIZE(PIXEL_SIZE),
+    .BURST_SIZE(BURST_SIZE),
+    .MAX_LINE_WIDTH(MAX_LINE_WIDTH),
+    .MEM_INCREMENT(MEM_INCREMENT)
 )
 memctrl
 (
@@ -122,24 +125,25 @@ memctrl
     .vout_buf_rd_pixel_i(vout_buf_rd_pixel),
     .vout_buf_rd_word_i(vout_buf_rd_word),
     .vout_buf_rd_complete_o(vout_buf_rd_complete),
+    .vout_frame_update_i(vout_frame_update),
     .vout_buf_rd_en_i(vout_buf_rd_en),
     .vout_buf_rd_data_o(vout_buf_rd_data)
 );
 
 fb_read_control
 #(
-    .BURST_SIZE,
-    .PIXEL_SIZE,
-    .MEMORY_WIDTH,
-    .VOUT_WIDTH,
-    .VOUT_HEIGHT,
-    .VOUT_H_FRONT_PORCH,
-    .VOUT_H_SYNC_WIDTH,
-    .VOUT_H_BACK_PORCH,
-    .VOUT_V_FRONT_PORCH,
-    .VOUT_V_SYNC_WIDTH,
-    .VOUT_V_BACK_PORCH,
-    .BACKGROUND_TYPE
+    .BURST_SIZE(BURST_SIZE),
+    .PIXEL_SIZE(PIXEL_SIZE),
+    .MEMORY_WIDTH(MEMORY_WIDTH),
+    .VOUT_WIDTH(VOUT_WIDTH),
+    .VOUT_HEIGHT(VOUT_HEIGHT),
+    .VOUT_H_FRONT_PORCH(VOUT_H_FRONT_PORCH),
+    .VOUT_H_SYNC_WIDTH(VOUT_H_SYNC_WIDTH),
+    .VOUT_H_BACK_PORCH(VOUT_H_BACK_PORCH),
+    .VOUT_V_FRONT_PORCH(VOUT_V_FRONT_PORCH),
+    .VOUT_V_SYNC_WIDTH(VOUT_V_SYNC_WIDTH),
+    .VOUT_V_BACK_PORCH(VOUT_V_BACK_PORCH),
+    .BACKGROUND_TYPE(BACKGROUND_TYPE)
 )
 rdctrl
 (
@@ -160,20 +164,24 @@ rdctrl
     .vout_height_i,
     .vout_bg_color_i,
 
+    .vout_h_count_o,
+    .vout_v_count_o,
+
     .vout_buf_data_req_o(vout_buf_data_req),
     .vout_buf_rd_line_o(vout_buf_rd_line),
     .vout_buf_rd_pixel_o(vout_buf_rd_pixel),
     .vout_buf_rd_word_o(vout_buf_rd_word),
     .vout_buf_rd_complete_i(vout_buf_rd_complete),
+    .vout_frame_update_o(vout_frame_update),
     .vout_buf_rd_en_o(vout_buf_rd_en),
     .vout_buf_rd_data_i(vout_buf_rd_data)
 );
 
 fb_write_control
 #(
-    .BURST_SIZE,
-    .PIXEL_SIZE,
-    .MEMORY_WIDTH
+    .BURST_SIZE(BURST_SIZE),
+    .PIXEL_SIZE(PIXEL_SIZE),
+    .MEMORY_WIDTH(MEMORY_WIDTH)
 )
 wrctrl
 (

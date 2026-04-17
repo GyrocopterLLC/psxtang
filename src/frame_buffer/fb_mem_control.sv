@@ -56,6 +56,7 @@ module fb_mem_control #(
     input  logic [9:0]              vout_buf_rd_pixel_i,
     input  logic [9:0]              vout_buf_rd_word_i, // Memory data word number for start of most recent burst
     output logic                    vout_buf_rd_complete_o, // asserted when burst read is complete
+    input  logic                    vout_frame_update_i, // used to latch the current frame slot in the triple buffer
     input  logic                    vout_buf_rd_en_i,
     output logic [PIXEL_SIZE-1:0]   vout_buf_rd_data_o
 );
@@ -234,12 +235,7 @@ always_ff @(posedge vout_clk_i or negedge rstn_i) begin
                         vout_buf_rd_data_o[(8*o) +: 8] <= o_fifo_rd_data_r[(8*o) +: 8];
                     end
                 end
-                // last byte must always come from fifo data
-                // overflow data cannot be PIX_BYTES long, it can only be up to PIX_BYTES-1. Otherwise it wouldn't be an overflow!
-                // It would simply be the final pixel of the previous FIFO word
                 vout_buf_rd_data_o[(8*(PIX_BYTES-1)) +: 8] <= o_fifo_rd_data[((int'(o_align)+(PIX_BYTES-1)-MEM_BYTES)*8) +: 8];
-                // note the above line is the same as the "true" case of the above if-else block, but the for loop variable "o"
-                // was replaced by (PIX_BYTES-1)
             end else begin
                 // standard move - just move FIFO data to read data
                 for(o = 0; o < PIX_BYTES; o = o + 1) begin
@@ -327,11 +323,67 @@ always_comb begin
         i_wr_addr[(i_addr_shift+9) +: 2] = 2'b00;
 end
 
+// ** Frame slot for output (read) **
+// We need to latch the current frame slot when starting an output frame
+// If we don't do that, it could change randomly during the output, causing
+// glitches in the video frame
+
+logic [1:0] i_frame_slot_Gray;
+logic [1:0] o_frame_slot_Gray_cdc [0:1] = '{2{2'b00}};
+logic [1:0] o_frame_slot;
+
+// convert video input frame slot to Gray code
+// super simple 2-bit binary-to-Gray conversion
+always_comb begin
+    case(vin_frame_slot_i)
+    2'b00:
+        i_frame_slot_Gray = 2'b00;
+    2'b01:
+        i_frame_slot_Gray = 2'b01;
+    2'b10:
+        i_frame_slot_Gray = 2'b11;
+    2'b11:
+        i_frame_slot_Gray = 2'b10;
+    endcase
+end
+
+// clock domain crossing of the Gray coded signal
+always_ff @(posedge vout_clk_i or negedge rstn_i) begin
+    if(!rstn_i) begin
+        o_frame_slot_Gray_cdc[0] <= 2'b00;
+        o_frame_slot_Gray_cdc[1] <= 2'b00;
+    end else begin
+        o_frame_slot_Gray_cdc[0] <= i_frame_slot_Gray;
+        o_frame_slot_Gray_cdc[1] <= o_frame_slot_Gray_cdc[0];
+    end
+end
+
+// latch the frame slot for output on the rising edge of Vsync
+always_ff @(posedge vout_clk_i or negedge rstn_i) begin
+    if(!rstn_i) begin
+        o_frame_slot <= 2'b00;
+    end else begin
+        if (vout_frame_update_i) begin
+            // simple 2-bit Gray-to-binary conversion
+            case(o_frame_slot_Gray_cdc[1])
+            2'b00:
+                o_frame_slot <= 2'b00;
+            2'b01:
+                o_frame_slot <= 2'b01;
+            2'b11:
+                o_frame_slot <= 2'b10;
+            2'b10:
+                o_frame_slot <= 2'b11;
+            endcase
+        end
+    end
+end            
+
 always_comb begin 
     o_rd_addr = vout_buf_rd_word_i;
     o_rd_addr[i_addr_shift +: 9] = vout_buf_rd_line_i;
-    if (vin_frame_slot_i != 2'd0)
-        o_rd_addr[(i_addr_shift+9) +: 2] = (vin_frame_slot_i - 2'd1);
+    if (o_frame_slot != 2'd0)
+        o_rd_addr[(i_addr_shift+9) +: 2] = (o_frame_slot - 2'd1);
     else
         o_rd_addr[(i_addr_shift+9) +: 2] = 2'd2;
 end
@@ -439,6 +491,9 @@ always_ff @(posedge mem_clk_i or negedge rstn_i) begin
                 m_read_req_count <= 0;
                 if(m_write_req) begin // simultaneous requests, pend the write
                     m_write_pending <= 1;
+                end
+                if (m_flush_req_d[FLUSH_TIMER_LEN-1]) begin // also could happen for simultaneous read / flush
+                    m_flush_pending <= 1;
                 end
             end else if(m_write_req || m_write_pending) begin
                 mem_state <= WRITE;
