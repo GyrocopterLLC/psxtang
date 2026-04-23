@@ -1,7 +1,8 @@
 module ddr_arbiter 
 #(
     parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 128
+    parameter int DATA_WIDTH = 128,
+    parameter int STROBE_WIDTH = (DATA_WIDTH / 8)
 
     // parameterize number of ports?
 )
@@ -17,6 +18,7 @@ module ddr_arbiter
     input  logic                    ddr1_rd_en_i,
     input  logic [ADDR_WIDTH-1:0]   ddr1_addr_i,
     input  logic [DATA_WIDTH-1:0]   ddr1_wr_data_i,
+    input  logic [STROBE_WIDTH-1:0] ddr1_wr_strb_i,
     output logic [DATA_WIDTH-1:0]   ddr1_rd_data_o,
     output logic                    ddr1_rd_data_valid_o,
     // Input port 2
@@ -25,6 +27,7 @@ module ddr_arbiter
     input  logic                    ddr2_rd_en_i,
     input  logic [ADDR_WIDTH-1:0]   ddr2_addr_i,
     input  logic [DATA_WIDTH-1:0]   ddr2_wr_data_i,
+    input  logic [STROBE_WIDTH-1:0] ddr2_wr_strb_i,
     output logic [DATA_WIDTH-1:0]   ddr2_rd_data_o,
     output logic                    ddr2_rd_data_valid_o,
     // Input port 3 - lowest priority
@@ -33,6 +36,7 @@ module ddr_arbiter
     input  logic                    ddr3_rd_en_i,
     input  logic [ADDR_WIDTH-1:0]   ddr3_addr_i,
     input  logic [DATA_WIDTH-1:0]   ddr3_wr_data_i,
+    input  logic [STROBE_WIDTH-1:0] ddr3_wr_strb_i,
     output logic [DATA_WIDTH-1:0]   ddr3_rd_data_o,
     output logic                    ddr3_rd_data_valid_o,
     // Output port - to memory controller
@@ -41,6 +45,7 @@ module ddr_arbiter
     output logic                    ddr_rd_en_o,
     output logic [ADDR_WIDTH-1:0]   ddr_addr_o,
     output logic [DATA_WIDTH-1:0]   ddr_wr_data_o,
+    output logic [STROBE_WIDTH-1:0] ddr_wr_strb_o,
     input  logic [DATA_WIDTH-1:0]   ddr_rd_data_i,
     input  logic                    ddr_rd_data_valid_i
 );
@@ -105,18 +110,21 @@ always_comb begin
     ddr_rd_en_o = ddr1_rd_en_i;
     ddr_addr_o = ddr1_addr_i;
     ddr_wr_data_o = ddr1_wr_data_i;
+    ddr_wr_strb_o = ddr1_wr_strb_i;
 
     if (selected_port[1]) begin
         ddr_wr_en_o = ddr2_wr_en_i;
         ddr_rd_en_o = ddr2_rd_en_i;
         ddr_addr_o = ddr2_addr_i;
         ddr_wr_data_o = ddr2_wr_data_i;
+        ddr_wr_strb_o = ddr2_wr_strb_i;
         
     end else if (selected_port[2]) begin
         ddr_wr_en_o = ddr3_wr_en_i;
         ddr_rd_en_o = ddr3_rd_en_i;
         ddr_addr_o = ddr3_addr_i;
         ddr_wr_data_o = ddr3_wr_data_i;
+        ddr_wr_strb_o = ddr3_wr_strb_i;
     end
 end
 
